@@ -39,6 +39,7 @@ class Scholarship:
             self.__due_date == other.__due_date 
         )
 
+    # Getters
     def get_favorited(self) -> bool:
         return self.__favorited
     
@@ -72,6 +73,7 @@ class Scholarship:
     def get_due_date(self) -> date:
         return self.__due_date
     
+    # Setters
     def set_favorited(self, favorited: bool) -> None:
         self.__favorited = favorited
 
@@ -104,4 +106,3 @@ class Scholarship:
 
     def set_due_date(self, due_date: date) -> None:
         self.__due_date = due_date
-
