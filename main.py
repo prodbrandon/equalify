@@ -179,20 +179,28 @@ with tab1:
         st.write(f"**Extra Requirements**: {scholarship['extra_requirements']}")
         st.write(f"**Due Date**: {scholarship['due_date'].strftime('%Y-%m-%d')}")
 
-        # Save, apply, pending buttons
+        # Save, apply, pending buttons with marked state
         col1, col2, col3 = st.columns(3)
         with col1:
             if scholarship not in st.session_state.saved_scholarships:
                 if st.button(f"Save {scholarship['name']}", key=f"save-{scholarship['name']}"):
                     st.session_state.saved_scholarships.append(scholarship)
+            else:
+                st.button(f"Saved {scholarship['name']}", disabled=True, key=f"saved-{scholarship['name']}")
+
         with col2:
             if scholarship not in st.session_state.applied_scholarships:
                 if st.button(f"Apply {scholarship['name']}", key=f"apply-{scholarship['name']}"):
                     st.session_state.applied_scholarships.append(scholarship)
+            else:
+                st.button(f"Applied {scholarship['name']}", disabled=True, key=f"applied-{scholarship['name']}")
+
         with col3:
             if scholarship not in st.session_state.pending_scholarships:
                 if st.button(f"Pending {scholarship['name']}", key=f"pending-{scholarship['name']}"):
                     st.session_state.pending_scholarships.append(scholarship)
+            else:
+                st.button(f"Pending {scholarship['name']}", disabled=True, key=f"pending-{scholarship['name']}")
 
 with tab2:
     st.write(f"You have saved {len(st.session_state.saved_scholarships)} scholarships.")
