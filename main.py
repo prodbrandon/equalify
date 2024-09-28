@@ -15,8 +15,8 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # Title and description
-st.title("Equalify")
-st.write("Empowering underrepresented communities with scholarships for students")
+st.title("Equalify 🎓")
+st.write("Empowering underrepresented communities with scholarships for students!")
 
 # Expanded sample static scholarship data with more DEI focus, including due dates
 scholarships_data = [
@@ -124,11 +124,11 @@ with st.sidebar:
                                     ["All", "African American", "Hispanic", "Native American", "Asian", "Other"])
     gender_filter = st.selectbox("Gender", ["All", "Female", "Male", "Non-binary", "Other"])
     first_gen_filter = st.checkbox("First-Generation College Student", value=False)
+    merit_based_filter = st.checkbox("Merit-Based", value=False)
     lgbtq_filter = st.checkbox("LGBTQ+", value=False)
     university_filter = st.selectbox("Applicable Universities",
                                      ["All", "Arizona State University", "University of Arizona",
                                       "Northern Arizona University"])
-    merit_based_filter = st.checkbox("Merit-Based", value=False)
     min_reward = st.number_input("Minimum Reward Amount ($)", min_value=0, value=0)
     max_reward = st.number_input("Maximum Reward Amount ($)", min_value=0, value=10000)
 
