@@ -5,7 +5,7 @@ st.set_page_config(layout="wide")  # Enables wide mode for better display when s
 st.title("Equalify")
 st.write("Empowering underrepresented communities with scholarships for students")
 
-# Expanded sample static scholarship data with more DEI focus
+# Expanded sample static scholarship data with more DEI focus, including due dates
 scholarships_data = [
     {
         "name": "Arizona Leadership Scholarship",
@@ -18,6 +18,7 @@ scholarships_data = [
         "location": "Arizona",
         "reward_amount": 5000,
         "extra_requirements": "500-word essay",
+        "due_date": "2024-12-15"
     },
     {
         "name": "Native American Excellence Scholarship",
@@ -30,6 +31,7 @@ scholarships_data = [
         "location": "Arizona",
         "reward_amount": 3000,
         "extra_requirements": "Must take at least one Native American Studies class",
+        "due_date": "2024-10-01"
     },
     {
         "name": "Hispanic Scholars Award",
@@ -42,6 +44,7 @@ scholarships_data = [
         "location": "Arizona",
         "reward_amount": 2000,
         "extra_requirements": "GPA of 3.5+ required",
+        "due_date": "2024-11-20"
     },
     {
         "name": "LGBTQ+ Advocacy Scholarship",
@@ -54,6 +57,7 @@ scholarships_data = [
         "location": "Arizona",
         "reward_amount": 4000,
         "extra_requirements": "Must demonstrate involvement in LGBTQ+ advocacy",
+        "due_date": "2024-09-30"
     },
     {
         "name": "First-Generation College Student Award",
@@ -66,6 +70,7 @@ scholarships_data = [
         "location": "Arizona",
         "reward_amount": 2500,
         "extra_requirements": "Must be the first in family to attend college",
+        "due_date": "2024-12-01"
     },
     {
         "name": "Women in STEM Scholarship",
@@ -78,6 +83,7 @@ scholarships_data = [
         "location": "Arizona",
         "reward_amount": 3500,
         "extra_requirements": "Must be pursuing a degree in STEM",
+        "due_date": "2024-10-15"
     }
 ]
 
@@ -135,6 +141,7 @@ for scholarship in filtered_scholarships:
     st.write(f"**Location**: {scholarship['location']}")
     st.write(f"**Reward Amount**: ${scholarship['reward_amount']}")
     st.write(f"**Extra Requirements**: {scholarship['extra_requirements']}")
+    st.write(f"**Due Date**: {scholarship['due_date']}")
     st.write("---")
 
 # Call to action in case no matching scholarships are found
