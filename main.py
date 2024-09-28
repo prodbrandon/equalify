@@ -1,7 +1,20 @@
 import streamlit as st
+from datetime import datetime
+
+# Ensure page configuration is set before any other Streamlit code
+st.set_page_config(layout="wide")  # Enables wide mode for better display when sidebar is minimized
+
+# Inject custom CSS to change the font to Helvetica
+st.markdown("""
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Helvetica:wght@400;700&display=swap');
+    html, body, [class*="css"]  {
+        font-family: 'Helvetica', sans-serif;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
 # Title and description
-st.set_page_config(layout="wide")  # Enables wide mode for better display when sidebar is minimized
 st.title("Equalify")
 st.write("Empowering underrepresented communities with scholarships for students")
 
@@ -87,6 +100,18 @@ scholarships_data = [
     }
 ]
 
+# Convert due_date strings to datetime objects for sorting
+for scholarship in scholarships_data:
+    scholarship['due_date'] = datetime.strptime(scholarship['due_date'], "%Y-%m-%d")
+
+# Initialize session state for saved, applied, and pending scholarships if not already present
+if 'saved_scholarships' not in st.session_state:
+    st.session_state.saved_scholarships = []
+if 'applied_scholarships' not in st.session_state:
+    st.session_state.applied_scholarships = []
+if 'pending_scholarships' not in st.session_state:
+    st.session_state.pending_scholarships = []
+
 # Sidebar filters with search and DEI categories
 with st.sidebar:
     st.header("Filter Scholarships")
@@ -94,6 +119,7 @@ with st.sidebar:
     # Search bar to find scholarships by name, location, or requirements
     search_query = st.text_input("Search for Scholarships", "")
 
+    # Filter options
     ethnicity_filter = st.selectbox("Required Ethnicity",
                                     ["All", "African American", "Hispanic", "Native American", "Asian", "Other"])
     gender_filter = st.selectbox("Gender", ["All", "Female", "Male", "Non-binary", "Other"])
@@ -106,8 +132,10 @@ with st.sidebar:
     min_reward = st.number_input("Minimum Reward Amount ($)", min_value=0, value=0)
     max_reward = st.number_input("Maximum Reward Amount ($)", min_value=0, value=10000)
 
+    sort_by_due_date = st.selectbox("Sort by Due Date", ["Ascending", "Descending"])
 
-# Search function to look for specific keywords in scholarships
+
+# Function to filter scholarships based on search and filters
 def search_scholarships(scholarship_list, query):
     if query == "":
         return scholarship_list
@@ -127,24 +155,59 @@ filtered_scholarships = [scholarship for scholarship in filtered_scholarships if
                          (not merit_based_filter or scholarship["merit_based"]) and
                          (min_reward <= scholarship["reward_amount"] <= max_reward)]
 
-# Display filtered results
-st.write(f"Found {len(filtered_scholarships)} scholarships matching your filters and search query.")
+# Sort scholarships by due date
+if sort_by_due_date == "Ascending":
+    filtered_scholarships = sorted(filtered_scholarships, key=lambda x: x['due_date'])
+else:
+    filtered_scholarships = sorted(filtered_scholarships, key=lambda x: x['due_date'], reverse=True)
 
-for scholarship in filtered_scholarships:
-    st.subheader(scholarship["name"])
-    st.write(f"**Merit-Based**: {scholarship['merit_based']}")
-    st.write(f"**Required Ethnicity**: {scholarship['ethnicity']}")
-    st.write(f"**Gender**: {scholarship['gender']}")
-    st.write(f"**First-Generation College Student**: {'Yes' if scholarship['first_gen'] else 'No'}")
-    st.write(f"**LGBTQ+ Support**: {'Yes' if scholarship['lgbtq'] else 'No'}")
-    st.write(f"**Applicable Universities**: {', '.join(scholarship['universities'])}")
-    st.write(f"**Location**: {scholarship['location']}")
-    st.write(f"**Reward Amount**: ${scholarship['reward_amount']}")
-    st.write(f"**Extra Requirements**: {scholarship['extra_requirements']}")
-    st.write(f"**Due Date**: {scholarship['due_date']}")
-    st.write("---")
+# Tabs for viewing all scholarships, saved, and applied
+tab1, tab2, tab3 = st.tabs(["All Scholarships", "Saved Scholarships", "Applied Scholarships"])
 
-# Call to action in case no matching scholarships are found
-if len(filtered_scholarships) == 0:
-    st.write("## Don't see a scholarship that fits your needs?")
-    st.write("We’re constantly updating our database. Keep checking for more opportunities!")
+with tab1:
+    st.write(f"Found {len(filtered_scholarships)} scholarships matching your filters and search query.")
+    for scholarship in filtered_scholarships:
+        st.subheader(scholarship["name"])
+        st.write(f"**Merit-Based**: {scholarship['merit_based']}")
+        st.write(f"**Required Ethnicity**: {scholarship['ethnicity']}")
+        st.write(f"**Gender**: {scholarship['gender']}")
+        st.write(f"**First-Generation College Student**: {'Yes' if scholarship['first_gen'] else 'No'}")
+        st.write(f"**LGBTQ+ Support**: {'Yes' if scholarship['lgbtq'] else 'No'}")
+        st.write(f"**Applicable Universities**: {', '.join(scholarship['universities'])}")
+        st.write(f"**Location**: {scholarship['location']}")
+        st.write(f"**Reward Amount**: ${scholarship['reward_amount']}")
+        st.write(f"**Extra Requirements**: {scholarship['extra_requirements']}")
+        st.write(f"**Due Date**: {scholarship['due_date'].strftime('%Y-%m-%d')}")
+
+        # Save, apply, pending buttons
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            if scholarship not in st.session_state.saved_scholarships:
+                if st.button(f"Save {scholarship['name']}", key=f"save-{scholarship['name']}"):
+                    st.session_state.saved_scholarships.append(scholarship)
+        with col2:
+            if scholarship not in st.session_state.applied_scholarships:
+                if st.button(f"Apply {scholarship['name']}", key=f"apply-{scholarship['name']}"):
+                    st.session_state.applied_scholarships.append(scholarship)
+        with col3:
+            if scholarship not in st.session_state.pending_scholarships:
+                if st.button(f"Pending {scholarship['name']}", key=f"pending-{scholarship['name']}"):
+                    st.session_state.pending_scholarships.append(scholarship)
+
+with tab2:
+    st.write(f"You have saved {len(st.session_state.saved_scholarships)} scholarships.")
+    for scholarship in st.session_state.saved_scholarships:
+        st.subheader(scholarship["name"])
+        st.write(f"**Reward Amount**: ${scholarship['reward_amount']}")
+        st.write(f"**Due Date**: {scholarship['due_date'].strftime('%Y-%m-%d')}")
+        if st.button(f"Remove from Saved {scholarship['name']}", key=f"remove-saved-{scholarship['name']}"):
+            st.session_state.saved_scholarships.remove(scholarship)
+
+with tab3:
+    st.write(f"You have applied to {len(st.session_state.applied_scholarships)} scholarships.")
+    for scholarship in st.session_state.applied_scholarships:
+        st.subheader(scholarship["name"])
+        st.write(f"**Reward Amount**: ${scholarship['reward_amount']}")
+        st.write(f"**Due Date**: {scholarship['due_date'].strftime('%Y-%m-%d')}")
+        if st.button(f"Remove from Applied {scholarship['name']}", key=f"remove-applied-{scholarship['name']}"):
+            st.session_state.applied_scholarships.remove(scholarship)
