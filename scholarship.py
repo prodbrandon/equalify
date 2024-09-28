@@ -1,4 +1,4 @@
-from datetime import date  # Import date from the datetime module
+from datetime import date
 
 class Scholarship:
     def __init__(self, favorited: bool, name: str, gender: str, merit_based: bool,
@@ -14,13 +14,13 @@ class Scholarship:
         self.__reward = reward
         self.__LGBT = LGBT
         self.__extras = extras
-        self.__due_date = due_date  # Add due_date attribute
+        self.__due_date = due_date
 
     def __hash__(self) -> int:
         return hash((self.__favorited, self.__name, self.__merit_based, 
                      self.__gender, self.__ethnicity, self.__university, 
                      self.__location, self.__reward, self.__LGBT, 
-                     self.__extras, self.__due_date))  # Include due_date in hash
+                     self.__extras, self.__due_date))
 
     def __eq__(self, other: 'Scholarship') -> bool:
         if not isinstance(other, Scholarship):
@@ -36,7 +36,7 @@ class Scholarship:
             self.__reward == other.__reward and
             self.__LGBT == other.__LGBT and
             self.__extras == other.__extras and
-            self.__due_date == other.__due_date  # Include due_date in equality check
+            self.__due_date == other.__due_date 
         )
 
     def get_favorited(self) -> bool:
@@ -70,7 +70,7 @@ class Scholarship:
         return self.__extras
 
     def get_due_date(self) -> date:
-        return self.__due_date  # Getter for due_date
+        return self.__due_date
     
     def set_favorited(self, favorited: bool) -> None:
         self.__favorited = favorited
@@ -103,5 +103,5 @@ class Scholarship:
         self.__extras = extras
 
     def set_due_date(self, due_date: date) -> None:
-        self.__due_date = due_date  # Setter for due_date
+        self.__due_date = due_date
 
