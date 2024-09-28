@@ -1,0 +1,19 @@
+credentials:
+  usernames:
+    jsmith:
+      email: jsmith@gmail.com
+      name: John Smith
+      password: "$2b$12$XJZ5VGLN1V3F8glKqkMBGuXoCQgU1JavX7jL.zspYVg6rY3a3.bGO"  # Hashed password
+    rbriggs:
+      email: rbriggs@gmail.com
+      name: Rebecca Briggs
+      password: "$2b$12$eOcvMN/FjOI9Fec.NdJKNePyKvllSK1VV3RntAsXwZiPcNooPA/nS"  # Hashed password
+
+cookie:
+  expiry_days: 30
+  key: your_secret_key
+  name: your_cookie_name
+
+preauthorized:
+  emails:
+  - preauth_user@gmail.com
