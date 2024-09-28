@@ -1,33 +1,79 @@
 import streamlit as st
-import streamlit_authenticator as stauth
-import yaml
-from yaml.loader import SafeLoader
 from datetime import datetime
+import bcrypt
 from scholarship import Scholarship
 from scholarshipList import ScholarshipList
 
-# Load credentials from config.yaml
-with open('config.yaml') as file:
-    config = yaml.load(file, Loader=SafeLoader)
+# Initialize session state
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
+if 'username' not in st.session_state:
+    st.session_state.username = ""
+if 'saved_scholarships' not in st.session_state:
+    st.session_state.saved_scholarships = ScholarshipList()
+if 'applied_scholarships' not in st.session_state:
+    st.session_state.applied_scholarships = ScholarshipList()
 
-# Create the authenticator object
-authenticator = stauth.Authenticate(
-    config['credentials'],
-    config['cookie']['name'],
-    config['cookie']['key'],
-    config['cookie']['expiry_days'],
-    config['preauthorized']
-)
+# In-memory user database (to be replaced with persistent storage later)
+user_database = {}
 
-# Render the login widget
-name, authentication_status, username = authenticator.login('Login', 'main')
+# Helper function to hash passwords
+def hash_password(password):
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
 
-# Check authentication status
-if authentication_status:
-    # Main App (Scholarships)
-    authenticator.logout('Logout', 'main')
-    st.title(f"Welcome to Equalify 🎓, {name}")
-    st.write("Empowering underrepresented communities with scholarships for students!")
+# Helper function to check passwords
+def check_password(password, hashed):
+    return bcrypt.checkpw(password.encode('utf-8'), hashed)
+
+# Function to create a new user
+def create_user(username, password):
+    if username in user_database:
+        return False  # Username already exists
+    hashed_password = hash_password(password)
+    user_database[username] = hashed_password
+    return True
+
+# Function to authenticate a user
+def authenticate_user(username, password):
+    if username not in user_database:
+        return False  # User not found
+    stored_password = user_database[username]
+    return check_password(password, stored_password)
+
+# Login/Signup UI
+def login_signup():
+    st.title("Login / Signup")
+
+    tab1, tab2 = st.tabs(["Login", "Signup"])
+
+    # Login Tab
+    with tab1:
+        st.subheader("Login to your account")
+        login_username = st.text_input("Login Username", key="login_username")
+        login_password = st.text_input("Login Password", type="password", key="login_password")
+        if st.button("Login"):
+            if authenticate_user(login_username, login_password):
+                st.session_state.logged_in = True
+                st.session_state.username = login_username
+                st.success(f"Welcome back, {login_username}!")
+            else:
+                st.error("Invalid username or password")
+
+    # Signup Tab
+    with tab2:
+        st.subheader("Create a new account")
+        signup_username = st.text_input("Signup Username", key="signup_username")
+        signup_password = st.text_input("Signup Password", type="password", key="signup_password")
+        if st.button("Signup"):
+            if create_user(signup_username, signup_password):
+                st.success("Account created successfully! Please log in.")
+            else:
+                st.error("Username already exists. Please choose a different username.")
+
+# Main app function (scholarships page)
+def main_app():
+    st.title("Equalify 🎓")
+    st.write(f"Empowering underrepresented communities with scholarships for students! Welcome, {st.session_state.username}")
 
     # Initialize the ScholarshipList
     scholarship_list = ScholarshipList()
@@ -45,12 +91,6 @@ if authentication_status:
     # Add all the scholarships to the ScholarshipList
     for scholarship in scholarships_data:
         scholarship_list.add_scholarship(scholarship)
-
-    # Initialize session state for saved and applied scholarships
-    if 'saved_scholarships' not in st.session_state:
-        st.session_state.saved_scholarships = ScholarshipList()
-    if 'applied_scholarships' not in st.session_state:
-        st.session_state.applied_scholarships = ScholarshipList()
 
     # Sidebar filters with search and DEI categories
     with st.sidebar:
@@ -144,31 +184,8 @@ if authentication_status:
                     st.markdown(f"<button class='applied-button'>Applied {scholarship.get_name()}</button>",
                                 unsafe_allow_html=True)
 
-    # Tab 2: Saved Scholarships
-    with tab2:
-        st.write(f"You have saved {len(st.session_state.saved_scholarships.get_scholarships())} scholarships.")
-        saved_scholarships_copy = st.session_state.saved_scholarships.get_scholarships().copy()
-        for scholarship in saved_scholarships_copy:
-            st.subheader(scholarship.get_name())
-            st.write(f"**Reward Amount**: ${scholarship.get_reward()}")
-            st.write(f"**Due Date**: {scholarship.get_due_date().strftime('%Y-%m-%d')}")
-            if st.button(f"Remove from Saved {scholarship.get_name()}", key=f"remove-saved-{scholarship.get_name()}"):
-                st.session_state.saved_scholarships.remove_scholarship(scholarship)
-                st.info(f"Scholarship '{scholarship.get_name()}' removed from saved.")
-
-    # Tab 3: Applied Scholarships
-    with tab3:
-        st.write(f"You have applied to {len(st.session_state.applied_scholarships.get_scholarships())} scholarships.")
-        applied_scholarships_copy = st.session_state.applied_scholarships.get_scholarships().copy()
-        for scholarship in applied_scholarships_copy:
-            st.subheader(scholarship.get_name())
-            st.write(f"**Reward Amount**: ${scholarship.get_reward()}")
-            st.write(f"**Due Date**: {scholarship.get_due_date().strftime('%Y-%m-%d')}")
-            if st.button(f"Remove from Applied {scholarship.get_name()}", key=f"remove-applied-{scholarship.get_name()}"):
-                st.session_state.applied_scholarships.remove_scholarship(scholarship)
-                st.info(f"Scholarship '{scholarship.get_name()}' removed from applied.")
-
-elif authentication_status == False:
-    st.error('Username/password is incorrect')
-elif authentication_status == None:
-    st.warning('Please enter your username and password')
+# Run either the login/signup page or the main app
+if not st.session_state.logged_in:
+    login_signup()
+else:
+    main_app()
