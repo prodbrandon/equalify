@@ -1,6 +1,6 @@
 # equalify
 
-blah blah
+Written by: Ben Juntilla, Sahil Pai, Brandon Lim, Brandon Van Allen
 
 ## installation
 
