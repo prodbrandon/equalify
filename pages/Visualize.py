@@ -42,6 +42,8 @@ data = get_data()
 # Convert to DataFrame
 df = pd.DataFrame(data)
 
+st.title('''👁 :rainbow[Equalify Visualize]''')
+
 import re
 import nltk
 from nltk.corpus import stopwords

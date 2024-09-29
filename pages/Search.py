@@ -35,8 +35,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # Title and description
-st.title("Equalify🎓")
-st.write("Empowering underrepresented communities with scholarships for students!")
+st.title('''🔎 :rainbow[Equalify Search]''')
 
 # Initialize session state for saved, applied, and favorited scholarships
 if 'saved_scholarships' not in st.session_state:
