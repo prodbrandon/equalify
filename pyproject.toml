@@ -13,6 +13,10 @@ tqdm = "^4.66.5"
 pymongo = {extras = ["srv"], version = "^4.9.1"}
 python-dotenv = "^1.0.1"
 openai = "^1.50.2"
+scikit-learn = "^1.5.2"
+seaborn = "^0.13.2"
+plotly = "^5.24.1"
+Faker = "^30.0.0"
 
 [tool.poetry.dev-dependencies]
 
