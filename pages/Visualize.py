@@ -4,10 +4,17 @@ from pymongo.server_api import ServerApi
 import pymongo
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.cluster import KMeans
+from nltk.tokenize import word_tokenize
+from sklearn.decomposition import LatentDirichletAllocation
 import plotly.express as px
-from sklearn.decomposition import PCA
 from dotenv import load_dotenv
+import matplotlib.pyplot as plt
+import umap
+import hdbscan
+import re
+import nltk
+from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer
 
 # Load environment variables
 load_dotenv()
@@ -45,114 +52,159 @@ nltk.download('punkt_tab')
 nltk.download('stopwords')
 nltk.download('wordnet')
 
-def advanced_preprocess(text):
+def preprocess_text(text):
     # Convert to lowercase
     text = text.lower()
 
-    # Remove punctuation
-    text = re.sub(r'[^\w\s]', '', text)
+    # Remove URLs
+    text = re.sub(r'http\S+|www\S+|https\S+', '', text, flags=re.MULTILINE)
 
-    # Tokenize
-    tokens = nltk.word_tokenize(text)
+    # Remove email addresses
+    text = re.sub(r'\S+@\S+', '', text)
+
+    # Remove special characters and numbers, but keep hyphens for compound words
+    text = re.sub(r'[^a-zA-Z\s-]', '', text)
+
+    # Tokenize the text
+    tokens = word_tokenize(text)
 
     # Remove stopwords
     stop_words = set(stopwords.words('english'))
-    tokens = [token for token in tokens if token not in stop_words]
+
+    # Add domain-specific stopwords
+    domain_stopwords = {'scholarship', 'student', 'award', 'application', 'apply', 'program', 'opportunity'}
+    stop_words.update(domain_stopwords)
+
+    # Remove stopwords, but keep negation words
+    tokens = [token for token in tokens if token not in stop_words or token in ['no', 'not', 'nor', 'neither']]
 
     # Lemmatization
     lemmatizer = WordNetLemmatizer()
-    lemmatized_tokens = [lemmatizer.lemmatize(token) for token in tokens]
+    tokens = [lemmatizer.lemmatize(token) for token in tokens]
 
-    return ' '.join(lemmatized_tokens)
+    # Join tokens back into a string
+    processed_text = ' '.join(tokens)
 
-df['processed_description'] = df['description'].apply(advanced_preprocess)
+    # Preserve important hyphenated terms
+    important_terms = ['first-generation', 'low-income', 'african-american', 'asian-american', 'native-american', 'latin-american']
+    for term in important_terms:
+        processed_text = processed_text.replace(term.replace('-', ' '), term)
 
-# Vectorize the text data
-@st.cache_resource
-def vectorize_text(texts):
-    vectorizer = TfidfVectorizer(max_features=1000)
-    return vectorizer, vectorizer.fit_transform(texts)
+    # Preserve DEI-related terms
+    dei_terms = ['diversity', 'equity', 'inclusion', 'dei', 'minority', 'underrepresented', 'marginalized']
+    for term in dei_terms:
+        processed_text = processed_text.replace(term, f"DEI_{term}")
 
-vectorizer, tfidf_matrix = vectorize_text(df['processed_description'])
+    # Preserve identity-related terms
+    identity_terms = ['gender', 'race', 'ethnicity', 'lgbtq', 'disability', 'veteran', 'immigrant', 'refugee', 'indigenous', 'native']
+    for term in identity_terms:
+        processed_text = processed_text.replace(term, f"IDENTITY_{term}")
 
-# Streamlit app
-st.title('K-means Clustering on Scholarship Descriptions')
+    return processed_text
 
-# Sidebar for user input
-st.sidebar.header('Clustering Parameters')
-k = st.sidebar.slider('Number of clusters (k)', 2, 10, 3)
-max_words = st.sidebar.slider('Number of top words per cluster', 5, 20, 10)
+df['processed_description'] = df['description'].apply(preprocess_text)
 
-# Perform k-means clustering
-@st.cache_data
-def perform_clustering(_matrix, n_clusters):
-    kmeans = KMeans(n_clusters=n_clusters, random_state=42)
-    return kmeans.fit(_matrix)
+# TF-IDF Vectorization
+vectorizer = TfidfVectorizer(max_features=1000, ngram_range=(1, 2))
+tfidf_matrix = vectorizer.fit_transform(df['processed_description'])
 
-kmeans = perform_clustering(tfidf_matrix, k)
+# Dimensionality Reduction
+umap_embeddings = umap.UMAP(n_neighbors=15, n_components=5, metric='cosine').fit_transform(tfidf_matrix)
 
-# Add cluster labels to the original dataframe
-df['Cluster'] = kmeans.labels_
+# Clustering
+hdbscan_cluster = hdbscan.HDBSCAN(min_cluster_size=5, metric='euclidean', cluster_selection_method='eom')
+df['Cluster'] = hdbscan_cluster.fit_predict(umap_embeddings)
 
-# Perform PCA for visualization
-pca = PCA(n_components=2)
-pca_result = pca.fit_transform(tfidf_matrix.toarray())
-df['PCA1'] = pca_result[:, 0]
-df['PCA2'] = pca_result[:, 1]
+# Visualization
+umap_2d = umap.UMAP(n_neighbors=15, n_components=2, metric='cosine').fit_transform(tfidf_matrix)
+df['UMAP1'], df['UMAP2'] = umap_2d[:, 0], umap_2d[:, 1]
 
-# Create the scatter plot
-fig = px.scatter(df, x='PCA1', y='PCA2', color='Cluster', hover_data=['title'])
+fig = px.scatter(df, x='UMAP1', y='UMAP2', color='Cluster', hover_data=['title'])
 st.plotly_chart(fig)
 
-# Display cluster information
-st.subheader('Cluster Information')
-for i in range(k):
-    st.write(f"Cluster {i}:")
-    cluster_data = df[df['Cluster'] == i]
-    st.write(cluster_data[['title', 'description']].head())
+# Topic Modeling
+lda_model = LatentDirichletAllocation(n_components=10, random_state=42)
+lda_output = lda_model.fit_transform(tfidf_matrix)
 
-    # Get top words for this cluster
-    cluster_center = kmeans.cluster_centers_[i]
-    top_words_idx = cluster_center.argsort()[::-1][:max_words]
-    top_words = [vectorizer.get_feature_names_out()[idx] for idx in top_words_idx]
-    st.write(f"Top words: {', '.join(top_words)}")
-    st.write("---")
+# Display topics
+feature_names = vectorizer.get_feature_names_out()
+for topic_idx, topic in enumerate(lda_model.components_):
+    top_words = [feature_names[i] for i in topic.argsort()[:-10 - 1:-1]]
+    st.write(f"Topic {topic_idx}: {', '.join(top_words)}")
 
-# Display raw data
-if st.checkbox('Show raw data'):
-    st.subheader('Raw data')
-    st.write(df)
+# Combine DEI and identity keywords into a single list
+dei_identity_keywords = [
+    'diversity', 'equity', 'inclusion', 'minority', 'underrepresented',
+    'gender', 'race', 'ethnicity', 'lgbtq', 'disability',
+    'first-generation', 'low-income', 'international', 'veteran',
+    'immigrant', 'refugee', 'indigenous', 'native'
+]
 
-from wordcloud import WordCloud
-import matplotlib.pyplot as plt
+def combined_keyword_score(text, keywords):
+    # Convert text to lowercase for case-insensitive matching
+    text = text.lower()
+    # Count the occurrences of each keyword
+    return sum(text.count(keyword) for keyword in keywords)
 
-def generate_wordcloud(text):
-    wordcloud = WordCloud(width=800, height=400, background_color='white').generate(text)
-    plt.figure(figsize=(10, 5))
-    plt.imshow(wordcloud, interpolation='bilinear')
-    plt.axis('off')
-    st.pyplot(plt)
+# Apply the scoring function to the DataFrame
+df['DEI_Identity_Score'] = df['description'].apply(lambda x: combined_keyword_score(x, dei_identity_keywords))
 
-all_descriptions = ' '.join(df['description'])
-st.subheader("Word Cloud of All Descriptions")
-generate_wordcloud(all_descriptions)
+# Visualize the combined DEI and Identity scores
+fig = px.scatter(df, x='DEI_Identity_Score', y='Cluster', color='Cluster',
+                 hover_data=['title', 'description'],
+                 labels={'DEI_Identity_Score': 'Combined DEI & Identity Score', 'Cluster': 'Cluster'},
+                 title='Scholarships by DEI & Identity Score and Cluster')
 
-from collections import Counter
-from nltk import ngrams
+# Add jitter to y-axis to prevent overplotting
+fig.update_traces(marker=dict(size=10),
+                  selector=dict(mode='markers'))
+fig.update_layout(yaxis=dict(tickmode='linear'),  # Show all cluster numbers
+                  height=600)  # Increase height for better visibility
 
-def get_top_ngrams(text, n, top_k=10):
-    words = text.split()
-    n_grams = ngrams(words, n)
-    return Counter(n_grams).most_common(top_k)
+# Display the plot
+st.plotly_chart(fig)
 
-st.subheader("Top Bigrams and Trigrams")
-col1, col2 = st.columns(2)
-with col1:
-    st.write("Top Bigrams")
-    st.write(get_top_ngrams(all_descriptions, 2))
-with col2:
-    st.write("Top Trigrams")
-    st.write(get_top_ngrams(all_descriptions, 3))
+# Display top scoring scholarships
+st.subheader("Top Scoring Scholarships for DEI & Identity")
+top_scholarships = df.nlargest(10, 'DEI_Identity_Score')[['title', 'description', 'DEI_Identity_Score']]
+st.table(top_scholarships)
+
+# Display distribution of scores
+st.subheader("Distribution of DEI & Identity Scores")
+fig_hist = px.histogram(df, x='DEI_Identity_Score', nbins=20,
+                        labels={'DEI_Identity_Score': 'Combined DEI & Identity Score'},
+                        title='Distribution of Combined DEI & Identity Scores')
+st.plotly_chart(fig_hist)
+
+# from wordcloud import WordCloud
+
+# def generate_wordcloud(text):
+#     wordcloud = WordCloud(width=800, height=400, background_color='white').generate(text)
+#     plt.figure(figsize=(10, 5))
+#     plt.imshow(wordcloud, interpolation='bilinear')
+#     plt.axis('off')
+#     st.pyplot(plt)
+
+# all_descriptions = ' '.join(df['description'])
+# st.subheader("Word Cloud of All Descriptions")
+# generate_wordcloud(all_descriptions)
+
+# from collections import Counter
+# from nltk import ngrams
+
+# def get_top_ngrams(text, n, top_k=10):
+#     words = text.split()
+#     n_grams = ngrams(words, n)
+#     return Counter(n_grams).most_common(top_k)
+
+# st.subheader("Top Bigrams and Trigrams")
+# col1, col2 = st.columns(2)
+# with col1:
+#     st.write("Top Bigrams")
+#     st.write(get_top_ngrams(all_descriptions, 2))
+# with col2:
+#     st.write("Top Trigrams")
+#     st.write(get_top_ngrams(all_descriptions, 3))
 
 from gensim import corpora
 from gensim.models.ldamodel import LdaModel
