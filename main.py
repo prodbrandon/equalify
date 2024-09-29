@@ -274,4 +274,4 @@ with tab4:
     favorited_ids = list(st.session_state.favorited_scholarships)
     favorited_scholarships = scholarships_collection.find({"_id": {"$in": [ObjectId(sid) for sid in favorited_ids]}})
     st.write(f"You have favorited {len(favorited_ids)} scholarships.")
-    display_scholarship_list(favorited_scholarships, tab_prefix="favorited"
+    display_scholarship_list(favorited_scholarships, tab_prefix="favorited")
