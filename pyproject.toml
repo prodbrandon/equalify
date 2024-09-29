@@ -8,6 +8,8 @@ authors = ["Sam Altman <sam@openai.com>"]
 python = "^3.10"
 streamlit = "^1.38.0"
 bcrypt = "^4.2.0"
+beautifulsoup4 = "^4.12.3"
+tqdm = "^4.66.5"
 
 [tool.poetry.dev-dependencies]
 
