@@ -35,18 +35,42 @@ data = get_data()
 # Convert to DataFrame
 df = pd.DataFrame(data)
 
-# Preprocess the text data
-@st.cache_data
-def preprocess_text(text):
-    # You can add more preprocessing steps here if needed
-    return text.lower()
+import re
+import nltk
+from nltk.corpus import stopwords
+from nltk.stem import PorterStemmer, WordNetLemmatizer
 
-df['processed_description'] = df['description'].apply(preprocess_text)
+nltk.download('punkt')
+nltk.download('punkt_tab')
+nltk.download('stopwords')
+nltk.download('wordnet')
+
+def advanced_preprocess(text):
+    # Convert to lowercase
+    text = text.lower()
+
+    # Remove punctuation
+    text = re.sub(r'[^\w\s]', '', text)
+
+    # Tokenize
+    tokens = nltk.word_tokenize(text)
+
+    # Remove stopwords
+    stop_words = set(stopwords.words('english'))
+    tokens = [token for token in tokens if token not in stop_words]
+
+    # Lemmatization
+    lemmatizer = WordNetLemmatizer()
+    lemmatized_tokens = [lemmatizer.lemmatize(token) for token in tokens]
+
+    return ' '.join(lemmatized_tokens)
+
+df['processed_description'] = df['description'].apply(advanced_preprocess)
 
 # Vectorize the text data
 @st.cache_resource
 def vectorize_text(texts):
-    vectorizer = TfidfVectorizer(stop_words='english', max_features=1000)
+    vectorizer = TfidfVectorizer(max_features=1000)
     return vectorizer, vectorizer.fit_transform(texts)
 
 vectorizer, tfidf_matrix = vectorize_text(df['processed_description'])
