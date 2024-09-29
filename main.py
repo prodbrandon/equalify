@@ -145,16 +145,11 @@ start_idx = (st.session_state.page_number - 1) * page_size
 end_idx = start_idx + page_size
 current_page_scholarships = filtered_scholarships[start_idx:end_idx]
 
-# Tabs for viewing all scholarships, saved, applied, and favorited
-tab1, tab2, tab3, tab4 = st.tabs(
-    ["All Scholarships", "Saved Scholarships", "Applied Scholarships", "Favorited Scholarships"])
 
-# Tab 1: All Scholarships
-with tab1:
-    st.write(f"Found {total_scholarships} scholarships matching your filters and search query.")
-
-    # Display scholarships for the current page
-    for scholarship in current_page_scholarships:
+# Function to display scholarships with buttons
+# Function to display scholarships with buttons
+def display_scholarship_list(scholarships, tab_prefix):
+    for scholarship in scholarships:
         scholarship_id = str(scholarship["_id"])
 
         # Safely access scholarship fields and display only available fields
@@ -182,28 +177,6 @@ with tab1:
         if "location" in scholarship:
             st.write(f"**Location**: {scholarship['location']}")
 
-        # Additional support fields
-        if "women_in_stem" in scholarship:
-            st.write(f"**Women in STEM**: {'Yes' if scholarship['women_in_stem'] else 'No'}")
-
-        if "disabilities" in scholarship:
-            st.write(f"**Supports Disabilities**: {'Yes' if scholarship['disabilities'] else 'No'}")
-
-        if "rural" in scholarship:
-            st.write(f"**Rural**: {'Yes' if scholarship['rural'] else 'No'}")
-
-        if "immigrant_or_refugee" in scholarship:
-            st.write(f"**Immigrant or Refugee**: {'Yes' if scholarship['immigrant_or_refugee'] else 'No'}")
-
-        if "neurodiversity" in scholarship:
-            st.write(f"**Supports Neurodiversity**: {'Yes' if scholarship['neurodiversity'] else 'No'}")
-
-        if "low_income" in scholarship:
-            st.write(f"**Low Income**: {'Yes' if scholarship['low_income'] else 'No'}")
-
-        if "first_generation" in scholarship:
-            st.write(f"**First Generation College Student**: {'Yes' if scholarship['first_generation'] else 'No'}")
-
         # Handle reward amount with conditional logic
         if "reward" in scholarship:
             reward = scholarship['reward']
@@ -219,12 +192,12 @@ with tab1:
             due_date = scholarship["due_date"]
             st.write(f"**Due Date**: {due_date.strftime('%Y-%m-%d')}")
 
-        # Save, Apply, and Favorite buttons
-        col1, col2, col3 = st.columns(3)
+        # Save, Apply, Favorite, and Remove buttons with unique keys per tab
+        col1, col2, col3, col4 = st.columns(4)
 
         with col1:
             if scholarship_id not in st.session_state.saved_scholarships:
-                if st.button(f"Save {scholarship['title']}", key=f"save-{scholarship_id}"):
+                if st.button(f"Save {scholarship['title']}", key=f"{tab_prefix}-save-{scholarship_id}"):
                     st.session_state.saved_scholarships.add(scholarship_id)
                     scholarships_collection.update_one({"_id": ObjectId(scholarship_id)}, {"$set": {"saved": True}})
                     st.success(f"Scholarship '{scholarship['title']}' saved!")
@@ -233,7 +206,7 @@ with tab1:
 
         with col2:
             if scholarship_id not in st.session_state.applied_scholarships:
-                if st.button(f"Mark {scholarship['title']} as applied", key=f"apply-{scholarship_id}"):
+                if st.button(f"Mark {scholarship['title']} as applied", key=f"{tab_prefix}-apply-{scholarship_id}"):
                     st.session_state.applied_scholarships.add(scholarship_id)
                     scholarships_collection.update_one({"_id": ObjectId(scholarship_id)}, {"$set": {"applied": True}})
                     st.success(f"Scholarship '{scholarship['title']}' marked as applied!")
@@ -242,26 +215,63 @@ with tab1:
 
         with col3:
             if scholarship_id not in st.session_state.favorited_scholarships:
-                if st.button(f"Favorite {scholarship['title']}", key=f"favorite-{scholarship_id}"):
+                if st.button(f"Favorite {scholarship['title']}", key=f"{tab_prefix}-favorite-{scholarship_id}"):
                     st.session_state.favorited_scholarships.add(scholarship_id)
                     scholarships_collection.update_one({"_id": ObjectId(scholarship_id)}, {"$set": {"favorited": True}})
                     st.success(f"Scholarship '{scholarship['title']}' favorited!")
             else:
                 st.markdown(f"<button class='favorited-button'>Favorited</button>", unsafe_allow_html=True)
 
+        # Remove button for saved, applied, or favorited
+        with col4:
+            if tab_prefix == "saved":
+                if st.button(f"Remove from Saved", key=f"{tab_prefix}-remove-{scholarship_id}"):
+                    st.session_state.saved_scholarships.remove(scholarship_id)
+                    scholarships_collection.update_one({"_id": ObjectId(scholarship_id)}, {"$set": {"saved": False}})
+                    st.success(f"Scholarship '{scholarship['title']}' removed from saved!")
+            elif tab_prefix == "applied":
+                if st.button(f"Remove from Applied", key=f"{tab_prefix}-remove-{scholarship_id}"):
+                    st.session_state.applied_scholarships.remove(scholarship_id)
+                    scholarships_collection.update_one({"_id": ObjectId(scholarship_id)}, {"$set": {"applied": False}})
+                    st.success(f"Scholarship '{scholarship['title']}' removed from applied!")
+            elif tab_prefix == "favorited":
+                if st.button(f"Remove from Favorites", key=f"{tab_prefix}-remove-{scholarship_id}"):
+                    st.session_state.favorited_scholarships.remove(scholarship_id)
+                    scholarships_collection.update_one({"_id": ObjectId(scholarship_id)}, {"$set": {"favorited": False}})
+                    st.success(f"Scholarship '{scholarship['title']}' removed from favorites!")
+
         # Add a horizontal line to separate scholarships
         st.markdown("---")
 
-    # Pagination controls
-    col_prev, col_page, col_next = st.columns([1, 2, 1])
 
-    with col_prev:
-        if st.session_state.page_number > 1:
-            st.button("Previous", on_click=change_page, args=(-1,))
 
-    with col_page:
-        st.write(f"Page {st.session_state.page_number} of {total_pages}")
 
-    with col_next:
-        if st.session_state.page_number < total_pages:
-            st.button("Next", on_click=change_page, args=(1,))
+# Tabs for viewing all scholarships, saved, applied, and favorited
+tab1, tab2, tab3, tab4 = st.tabs(
+    ["All Scholarships", "Saved Scholarships", "Applied Scholarships", "Favorited Scholarships"])
+
+# Tab 1: All Scholarships
+with tab1:
+    st.write(f"Found {total_scholarships} scholarships matching your filters and search query.")
+    display_scholarship_list(current_page_scholarships, tab_prefix="all")
+
+# Tab 2: Saved Scholarships
+with tab2:
+    saved_ids = list(st.session_state.saved_scholarships)
+    saved_scholarships = scholarships_collection.find({"_id": {"$in": [ObjectId(sid) for sid in saved_ids]}})
+    st.write(f"You have saved {len(saved_ids)} scholarships.")
+    display_scholarship_list(saved_scholarships, tab_prefix="saved")
+
+# Tab 3: Applied Scholarships
+with tab3:
+    applied_ids = list(st.session_state.applied_scholarships)
+    applied_scholarships = scholarships_collection.find({"_id": {"$in": [ObjectId(sid) for sid in applied_ids]}})
+    st.write(f"You have applied to {len(applied_ids)} scholarships.")
+    display_scholarship_list(applied_scholarships, tab_prefix="applied")
+
+# Tab 4: Favorited Scholarships
+with tab4:
+    favorited_ids = list(st.session_state.favorited_scholarships)
+    favorited_scholarships = scholarships_collection.find({"_id": {"$in": [ObjectId(sid) for sid in favorited_ids]}})
+    st.write(f"You have favorited {len(favorited_ids)} scholarships.")
+    display_scholarship_list(favorited_scholarships, tab_prefix="favorited"
