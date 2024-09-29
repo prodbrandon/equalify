@@ -111,6 +111,7 @@ tab1, tab2, tab3, tab4 = st.tabs(
     ["All Scholarships", "Saved Scholarships", "Applied Scholarships", "Favorited Scholarships"])
 
 # Tab 1: All Scholarships
+# Tab 1: All Scholarships
 with tab1:
     st.write(f"Found {len(filtered_scholarships)} scholarships matching your filters and search query.")
 
@@ -195,20 +196,109 @@ with tab2:
     saved_ids = list(st.session_state.saved_scholarships)
     saved_scholarships = scholarships_collection.find({"_id": {"$in": [ObjectId(sid) for sid in saved_ids]}})
     st.write(f"You have saved {len(saved_ids)} scholarships.")
-    for scholarship in saved_scholarships:
-        name = scholarship.get('title')
-        if name:
-            st.subheader(name)
 
-        # Handle reward amount with conditional logic in Saved Scholarships tab
-        if 'reward' in scholarship:
-            reward = scholarship.get('reward', 0)
+    # Track IDs to be removed after loop finishes
+    scholarships_to_remove = []
+
+    for scholarship in saved_scholarships:
+        scholarship_id = str(scholarship["_id"])
+
+        if "title" in scholarship:
+            st.subheader(scholarship["title"])
+
+        if "description" in scholarship:
+            st.write(scholarship["description"])
+
+        if "reward" in scholarship:
+            reward = scholarship['reward']
             if reward == 0:
                 st.write("**Reward Amount**: Amount may vary")
             else:
                 st.write(f"**Reward Amount**: ${reward}")
 
-        if 'due_date' in scholarship:
+        if "due_date" in scholarship:
             st.write(f"**Due Date**: {scholarship['due_date'].strftime('%Y-%m-%d')}")
 
-# The rest of the tabs for applied and favorited scholarships follow the same structure as saved.
+        # Add a Remove button for Saved scholarships
+        if st.button(f"Remove {scholarship['title']} from Saved", key=f"remove-saved-{scholarship_id}"):
+            scholarships_to_remove.append(scholarship_id)
+            st.success(f"Scholarship '{scholarship['title']}' removed from saved!")
+
+    # Remove scholarships from session state and MongoDB after the loop
+    for sid in scholarships_to_remove:
+        st.session_state.saved_scholarships.remove(sid)
+        scholarships_collection.update_one({"_id": ObjectId(sid)}, {"$set": {"saved": False}})
+
+
+# Tab 3: Applied Scholarships
+with tab3:
+    applied_ids = list(st.session_state.applied_scholarships)
+    applied_scholarships = scholarships_collection.find({"_id": {"$in": [ObjectId(sid) for sid in applied_ids]}})
+    st.write(f"You have applied to {len(applied_ids)} scholarships.")
+
+    scholarships_to_remove = []
+
+    for scholarship in applied_scholarships:
+        scholarship_id = str(scholarship["_id"])
+
+        if "title" in scholarship:
+            st.subheader(scholarship["title"])
+
+        if "description" in scholarship:
+            st.write(scholarship["description"])
+
+        if "reward" in scholarship:
+            reward = scholarship['reward']
+            if reward == 0:
+                st.write("**Reward Amount**: Amount may vary")
+            else:
+                st.write(f"**Reward Amount**: ${reward}")
+
+        if "due_date" in scholarship:
+            st.write(f"**Due Date**: {scholarship['due_date'].strftime('%Y-%m-%d')}")
+
+        # Add a Remove button for Applied scholarships
+        if st.button(f"Remove {scholarship['title']} from Applied", key=f"remove-applied-{scholarship_id}"):
+            scholarships_to_remove.append(scholarship_id)
+            st.success(f"Scholarship '{scholarship['title']}' removed from applied!")
+
+    for sid in scholarships_to_remove:
+        st.session_state.applied_scholarships.remove(sid)
+        scholarships_collection.update_one({"_id": ObjectId(sid)}, {"$set": {"applied": False}})
+
+
+# Tab 4: Favorited Scholarships
+with tab4:
+    favorited_ids = list(st.session_state.favorited_scholarships)
+    favorited_scholarships = scholarships_collection.find({"_id": {"$in": [ObjectId(sid) for sid in favorited_ids]}})
+    st.write(f"You have favorited {len(favorited_ids)} scholarships.")
+
+    scholarships_to_remove = []
+
+    for scholarship in favorited_scholarships:
+        scholarship_id = str(scholarship["_id"])
+
+        if "title" in scholarship:
+            st.subheader(scholarship["title"])
+
+        if "description" in scholarship:
+            st.write(scholarship["description"])
+
+        if "reward" in scholarship:
+            reward = scholarship['reward']
+            if reward == 0:
+                st.write("**Reward Amount**: Amount may vary")
+            else:
+                st.write(f"**Reward Amount**: ${reward}")
+
+        if "due_date" in scholarship:
+            st.write(f"**Due Date**: {scholarship['due_date'].strftime('%Y-%m-%d')}")
+
+        # Add a Remove button for Favorited scholarships
+        if st.button(f"Remove {scholarship['title']} from Favorites", key=f"remove-favorite-{scholarship_id}"):
+            scholarships_to_remove.append(scholarship_id)
+            st.success(f"Scholarship '{scholarship['title']}' removed from favorites!")
+
+    for sid in scholarships_to_remove:
+        st.session_state.favorited_scholarships.remove(sid)
+        scholarships_collection.update_one({"_id": ObjectId(sid)}, {"$set": {"favorited": False}})
