@@ -12,6 +12,7 @@ beautifulsoup4 = "^4.12.3"
 tqdm = "^4.66.5"
 pymongo = {extras = ["srv"], version = "^4.9.1"}
 python-dotenv = "^1.0.1"
+openai = "^1.50.2"
 
 [tool.poetry.dev-dependencies]
 
