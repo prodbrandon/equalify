@@ -68,14 +68,21 @@ with st.sidebar:
     ethnicity_filter = st.selectbox("Required Ethnicity",
                                     ["All", "African American", "Hispanic", "Native American", "Asian", "Other"])
     gender_filter = st.selectbox("Gender", ["All", "Female", "Male", "Non-binary", "Other"])
-    first_gen_filter = st.checkbox("First-Generation College Student", value=False)
-    merit_based_filter = st.checkbox("Merit-Based", value=False)
-    lgbtq_filter = st.checkbox("LGBTQ+", value=False)
+    major_filter = st.text_input("Preferred Major", "")
     min_reward = st.number_input("Minimum Reward Amount ($)", min_value=0, value=0)
     max_reward = st.number_input("Maximum Reward Amount ($)", min_value=0, value=1000000)
 
-    # Filter based on "Essay" or "No Essay"
-    essay_filter = st.radio("Essay Requirement", options=["All", "Essay", "No Essay"])
+    # Checkboxes for additional filters
+    lgbtq_filter = st.checkbox("Supports LGBTQ+", value=False)
+    merit_based_filter = st.checkbox("Merit-Based", value=False)
+    essay_required_filter = st.checkbox("Essay Required", value=False)
+    women_in_stem_filter = st.checkbox("Women in STEM", value=False)
+    disabilities_filter = st.checkbox("Supports Disabilities", value=False)
+    rural_filter = st.checkbox("Rural Student", value=False)
+    immigrant_or_refugee_filter = st.checkbox("Immigrant or Refugee", value=False)
+    neurodiversity_filter = st.checkbox("Supports Neurodiversity", value=False)
+    low_income_filter = st.checkbox("Low Income", value=False)
+    first_gen_filter = st.checkbox("First Generation College Student", value=False)
 
 
 # Fetch scholarships from MongoDB and apply filters
@@ -89,19 +96,30 @@ def fetch_and_filter_scholarships():
         mongo_query["preferred_ethnicity"] = ethnicity_filter
     if gender_filter != "All":
         mongo_query["preferred_gender"] = gender_filter
-    # if first_gen_filter:
-    #     mongo_query["prefers_lgbt"] = True
-    if merit_based_filter:
-        mongo_query["is_merit_based"] = True
+    if major_filter:
+        mongo_query["preferred_major"] = {"$regex": major_filter, "$options": "i"}
     if lgbtq_filter:
         mongo_query["prefers_lgbt"] = True
-    mongo_query["reward"] = {"$gte": min_reward, "$lte": max_reward}
+    if merit_based_filter:
+        mongo_query["is_merit_based"] = True
+    if essay_required_filter:
+        mongo_query["is_essay_required"] = True
+    if women_in_stem_filter:
+        mongo_query["women_in_stem"] = True
+    if disabilities_filter:
+        mongo_query["disabilities"] = True
+    if rural_filter:
+        mongo_query["rural"] = True
+    if immigrant_or_refugee_filter:
+        mongo_query["immigrant_or_refugee"] = True
+    if neurodiversity_filter:
+        mongo_query["neurodiversity"] = True
+    if low_income_filter:
+        mongo_query["low_income"] = True
+    if first_gen_filter:
+        mongo_query["first_generation"] = True
 
-    # Essay filter
-    # if essay_filter == "Essay":
-    #     mongo_query["extra_requirements"] = {"$regex": "essay", "$options": "i"}
-    # elif essay_filter == "No Essay":
-    #     mongo_query["extra_requirements"] = {"$not": {"$regex": "essay", "$options": "i"}}
+    mongo_query["reward"] = {"$gte": min_reward, "$lte": max_reward}
 
     # Fetch scholarships from MongoDB
     scholarships = list(scholarships_collection.find(mongo_query))
@@ -155,8 +173,36 @@ with tab1:
         if "preferred_gender" in scholarship:
             st.write(f"**Preferred Gender**: {scholarship['preferred_gender']}")
 
+        if "preferred_major" in scholarship:
+            st.write(f"**Preferred Major**: {scholarship['preferred_major']}")
+
+        if "prefers_lgbt" in scholarship:
+            st.write(f"**Supports LGBTQ+**: {'Yes' if scholarship['prefers_lgbt'] else 'No'}")
+
         if "location" in scholarship:
             st.write(f"**Location**: {scholarship['location']}")
+
+        # Additional support fields
+        if "women_in_stem" in scholarship:
+            st.write(f"**Women in STEM**: {'Yes' if scholarship['women_in_stem'] else 'No'}")
+
+        if "disabilities" in scholarship:
+            st.write(f"**Supports Disabilities**: {'Yes' if scholarship['disabilities'] else 'No'}")
+
+        if "rural" in scholarship:
+            st.write(f"**Rural**: {'Yes' if scholarship['rural'] else 'No'}")
+
+        if "immigrant_or_refugee" in scholarship:
+            st.write(f"**Immigrant or Refugee**: {'Yes' if scholarship['immigrant_or_refugee'] else 'No'}")
+
+        if "neurodiversity" in scholarship:
+            st.write(f"**Supports Neurodiversity**: {'Yes' if scholarship['neurodiversity'] else 'No'}")
+
+        if "low_income" in scholarship:
+            st.write(f"**Low Income**: {'Yes' if scholarship['low_income'] else 'No'}")
+
+        if "first_generation" in scholarship:
+            st.write(f"**First Generation College Student**: {'Yes' if scholarship['first_generation'] else 'No'}")
 
         # Handle reward amount with conditional logic
         if "reward" in scholarship:
@@ -187,7 +233,7 @@ with tab1:
 
         with col2:
             if scholarship_id not in st.session_state.applied_scholarships:
-                if st.button(f"Apply {scholarship['title']}", key=f"apply-{scholarship_id}"):
+                if st.button(f"Mark {scholarship['title']} as applied", key=f"apply-{scholarship_id}"):
                     st.session_state.applied_scholarships.add(scholarship_id)
                     scholarships_collection.update_one({"_id": ObjectId(scholarship_id)}, {"$set": {"applied": True}})
                     st.success(f"Scholarship '{scholarship['title']}' marked as applied!")
