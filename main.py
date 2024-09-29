@@ -46,6 +46,16 @@ if 'applied_scholarships' not in st.session_state:
 if 'favorited_scholarships' not in st.session_state:
     st.session_state.favorited_scholarships = set()
 
+# Pagination settings
+page_size = 5  # Number of scholarships to display per page
+if 'page_number' not in st.session_state:
+    st.session_state.page_number = 1
+
+
+def change_page(change):
+    st.session_state.page_number += change
+
+
 # Sidebar filters
 with st.sidebar:
     st.header("Filter Scholarships")
@@ -62,10 +72,11 @@ with st.sidebar:
     merit_based_filter = st.checkbox("Merit-Based", value=False)
     lgbtq_filter = st.checkbox("LGBTQ+", value=False)
     min_reward = st.number_input("Minimum Reward Amount ($)", min_value=0, value=0)
-    max_reward = st.number_input("Maximum Reward Amount ($)", min_value=0, value=10000)
+    max_reward = st.number_input("Maximum Reward Amount ($)", min_value=0, value=1000000)
 
     # Filter based on "Essay" or "No Essay"
     essay_filter = st.radio("Essay Requirement", options=["All", "Essay", "No Essay"])
+
 
 # Fetch scholarships from MongoDB and apply filters
 def fetch_and_filter_scholarships():
@@ -78,8 +89,8 @@ def fetch_and_filter_scholarships():
         mongo_query["preferred_ethnicity"] = ethnicity_filter
     if gender_filter != "All":
         mongo_query["preferred_gender"] = gender_filter
-    if first_gen_filter:
-        mongo_query["prefers_lgbt"] = True
+    # if first_gen_filter:
+    #     mongo_query["prefers_lgbt"] = True
     if merit_based_filter:
         mongo_query["is_merit_based"] = True
     if lgbtq_filter:
@@ -87,10 +98,10 @@ def fetch_and_filter_scholarships():
     mongo_query["reward"] = {"$gte": min_reward, "$lte": max_reward}
 
     # Essay filter
-    if essay_filter == "Essay":
-        mongo_query["extra_requirements"] = {"$regex": "essay", "$options": "i"}
-    elif essay_filter == "No Essay":
-        mongo_query["extra_requirements"] = {"$not": {"$regex": "essay", "$options": "i"}}
+    # if essay_filter == "Essay":
+    #     mongo_query["extra_requirements"] = {"$regex": "essay", "$options": "i"}
+    # elif essay_filter == "No Essay":
+    #     mongo_query["extra_requirements"] = {"$not": {"$regex": "essay", "$options": "i"}}
 
     # Fetch scholarships from MongoDB
     scholarships = list(scholarships_collection.find(mongo_query))
@@ -103,19 +114,29 @@ def fetch_and_filter_scholarships():
 
     return scholarships
 
+
 # Fetch filtered scholarships
 filtered_scholarships = fetch_and_filter_scholarships()
+
+# Pagination calculations
+total_scholarships = len(filtered_scholarships)
+total_pages = (total_scholarships // page_size) + (1 if total_scholarships % page_size > 0 else 0)
+
+# Determine scholarships for the current page
+start_idx = (st.session_state.page_number - 1) * page_size
+end_idx = start_idx + page_size
+current_page_scholarships = filtered_scholarships[start_idx:end_idx]
 
 # Tabs for viewing all scholarships, saved, applied, and favorited
 tab1, tab2, tab3, tab4 = st.tabs(
     ["All Scholarships", "Saved Scholarships", "Applied Scholarships", "Favorited Scholarships"])
 
 # Tab 1: All Scholarships
-# Tab 1: All Scholarships
 with tab1:
-    st.write(f"Found {len(filtered_scholarships)} scholarships matching your filters and search query.")
+    st.write(f"Found {total_scholarships} scholarships matching your filters and search query.")
 
-    for scholarship in filtered_scholarships:
+    # Display scholarships for the current page
+    for scholarship in current_page_scholarships:
         scholarship_id = str(scholarship["_id"])
 
         # Safely access scholarship fields and display only available fields
@@ -134,12 +155,6 @@ with tab1:
         if "preferred_gender" in scholarship:
             st.write(f"**Preferred Gender**: {scholarship['preferred_gender']}")
 
-        if "preferred_major" in scholarship:
-            st.write(f"**Preferred Major**: {scholarship['preferred_major']}")
-
-        if "prefers_lgbt" in scholarship:
-            st.write(f"**Supports LGBTQ+**: {'Yes' if scholarship['prefers_lgbt'] else 'No'}")
-
         if "location" in scholarship:
             st.write(f"**Location**: {scholarship['location']}")
 
@@ -150,9 +165,6 @@ with tab1:
                 st.write("**Reward Amount**: Amount may vary")
             else:
                 st.write(f"**Reward Amount**: ${reward}")
-
-        if "is_essay_required" in scholarship:
-            st.write(f"**Essay Required**: {'Yes' if scholarship['is_essay_required'] else 'No'}")
 
         if "extra_requirements" in scholarship:
             st.write(f"**Extra Requirements**: {scholarship['extra_requirements']}")
@@ -191,114 +203,19 @@ with tab1:
             else:
                 st.markdown(f"<button class='favorited-button'>Favorited</button>", unsafe_allow_html=True)
 
-# Tab 2: Saved Scholarships
-with tab2:
-    saved_ids = list(st.session_state.saved_scholarships)
-    saved_scholarships = scholarships_collection.find({"_id": {"$in": [ObjectId(sid) for sid in saved_ids]}})
-    st.write(f"You have saved {len(saved_ids)} scholarships.")
+        # Add a horizontal line to separate scholarships
+        st.markdown("---")
 
-    # Track IDs to be removed after loop finishes
-    scholarships_to_remove = []
+    # Pagination controls
+    col_prev, col_page, col_next = st.columns([1, 2, 1])
 
-    for scholarship in saved_scholarships:
-        scholarship_id = str(scholarship["_id"])
+    with col_prev:
+        if st.session_state.page_number > 1:
+            st.button("Previous", on_click=change_page, args=(-1,))
 
-        if "title" in scholarship:
-            st.subheader(scholarship["title"])
+    with col_page:
+        st.write(f"Page {st.session_state.page_number} of {total_pages}")
 
-        if "description" in scholarship:
-            st.write(scholarship["description"])
-
-        if "reward" in scholarship:
-            reward = scholarship['reward']
-            if reward == 0:
-                st.write("**Reward Amount**: Amount may vary")
-            else:
-                st.write(f"**Reward Amount**: ${reward}")
-
-        if "due_date" in scholarship:
-            st.write(f"**Due Date**: {scholarship['due_date'].strftime('%Y-%m-%d')}")
-
-        # Add a Remove button for Saved scholarships
-        if st.button(f"Remove {scholarship['title']} from Saved", key=f"remove-saved-{scholarship_id}"):
-            scholarships_to_remove.append(scholarship_id)
-            st.success(f"Scholarship '{scholarship['title']}' removed from saved!")
-
-    # Remove scholarships from session state and MongoDB after the loop
-    for sid in scholarships_to_remove:
-        st.session_state.saved_scholarships.remove(sid)
-        scholarships_collection.update_one({"_id": ObjectId(sid)}, {"$set": {"saved": False}})
-
-
-# Tab 3: Applied Scholarships
-with tab3:
-    applied_ids = list(st.session_state.applied_scholarships)
-    applied_scholarships = scholarships_collection.find({"_id": {"$in": [ObjectId(sid) for sid in applied_ids]}})
-    st.write(f"You have applied to {len(applied_ids)} scholarships.")
-
-    scholarships_to_remove = []
-
-    for scholarship in applied_scholarships:
-        scholarship_id = str(scholarship["_id"])
-
-        if "title" in scholarship:
-            st.subheader(scholarship["title"])
-
-        if "description" in scholarship:
-            st.write(scholarship["description"])
-
-        if "reward" in scholarship:
-            reward = scholarship['reward']
-            if reward == 0:
-                st.write("**Reward Amount**: Amount may vary")
-            else:
-                st.write(f"**Reward Amount**: ${reward}")
-
-        if "due_date" in scholarship:
-            st.write(f"**Due Date**: {scholarship['due_date'].strftime('%Y-%m-%d')}")
-
-        # Add a Remove button for Applied scholarships
-        if st.button(f"Remove {scholarship['title']} from Applied", key=f"remove-applied-{scholarship_id}"):
-            scholarships_to_remove.append(scholarship_id)
-            st.success(f"Scholarship '{scholarship['title']}' removed from applied!")
-
-    for sid in scholarships_to_remove:
-        st.session_state.applied_scholarships.remove(sid)
-        scholarships_collection.update_one({"_id": ObjectId(sid)}, {"$set": {"applied": False}})
-
-
-# Tab 4: Favorited Scholarships
-with tab4:
-    favorited_ids = list(st.session_state.favorited_scholarships)
-    favorited_scholarships = scholarships_collection.find({"_id": {"$in": [ObjectId(sid) for sid in favorited_ids]}})
-    st.write(f"You have favorited {len(favorited_ids)} scholarships.")
-
-    scholarships_to_remove = []
-
-    for scholarship in favorited_scholarships:
-        scholarship_id = str(scholarship["_id"])
-
-        if "title" in scholarship:
-            st.subheader(scholarship["title"])
-
-        if "description" in scholarship:
-            st.write(scholarship["description"])
-
-        if "reward" in scholarship:
-            reward = scholarship['reward']
-            if reward == 0:
-                st.write("**Reward Amount**: Amount may vary")
-            else:
-                st.write(f"**Reward Amount**: ${reward}")
-
-        if "due_date" in scholarship:
-            st.write(f"**Due Date**: {scholarship['due_date'].strftime('%Y-%m-%d')}")
-
-        # Add a Remove button for Favorited scholarships
-        if st.button(f"Remove {scholarship['title']} from Favorites", key=f"remove-favorite-{scholarship_id}"):
-            scholarships_to_remove.append(scholarship_id)
-            st.success(f"Scholarship '{scholarship['title']}' removed from favorites!")
-
-    for sid in scholarships_to_remove:
-        st.session_state.favorited_scholarships.remove(sid)
-        scholarships_collection.update_one({"_id": ObjectId(sid)}, {"$set": {"favorited": False}})
+    with col_next:
+        if st.session_state.page_number < total_pages:
+            st.button("Next", on_click=change_page, args=(1,))
