@@ -27,14 +27,24 @@ class AugmentedScholarship(BaseModel):
     preferred_ethnicity: Optional[str] = Field(None, description="Preferred ethnicity, if any")
     preferred_gender: Optional[str] = Field(None, description="Preferred gender, if any")
     preferred_major: Optional[str] = Field(None, description="Preferred major or field of study, if any")
-    is_university_specific: bool
+    prefers_lgbt: bool
+    university: Optional[str] = Field(None, description="Specific university, if any")
     location: Optional[str] = Field(None, description="Location requirement, if any")
     is_essay_required: bool
     reward: float = Field(description="Scholarship amount in USD")
     extra_requirements: Optional[str] = Field(None, description="Any additional requirements")
-
+    women_in_stem: bool
+    disabilities: bool
+    rural: bool
+    immigrant_or_refugee: bool
+    neurodiversity: bool
+    low_income: bool
+    first_generation: bool
 
 def augment_document(doc):
+    if "name" in doc:
+        return doc
+
     prompt = f"""
     Given the following scholarship description, please extract or infer the required information:
 
