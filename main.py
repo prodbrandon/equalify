@@ -73,24 +73,24 @@ def fetch_and_filter_scholarships():
 
     # Apply filters from sidebar
     if search_query:
-        mongo_query["name"] = {"$regex": search_query, "$options": "i"}
+        mongo_query["title"] = {"$regex": search_query, "$options": "i"}
     if ethnicity_filter != "All":
-        mongo_query["ethnicity"] = ethnicity_filter
+        mongo_query["preferred_ethnicity"] = ethnicity_filter
     if gender_filter != "All":
-        mongo_query["gender"] = gender_filter
+        mongo_query["preferred_gender"] = gender_filter
     if first_gen_filter:
-        mongo_query["first_gen"] = True
+        mongo_query["prefers_lgbt"] = True
     if merit_based_filter:
-        mongo_query["merit_based"] = True
+        mongo_query["is_merit_based"] = True
     if lgbtq_filter:
-        mongo_query["LGBTQ"] = True
+        mongo_query["prefers_lgbt"] = True
     mongo_query["reward"] = {"$gte": min_reward, "$lte": max_reward}
 
     # Essay filter
     if essay_filter == "Essay":
-        mongo_query["extras"] = {"$regex": "essay", "$options": "i"}
+        mongo_query["extra_requirements"] = {"$regex": "essay", "$options": "i"}
     elif essay_filter == "No Essay":
-        mongo_query["extras"] = {"$not": {"$regex": "essay", "$options": "i"}}
+        mongo_query["extra_requirements"] = {"$not": {"$regex": "essay", "$options": "i"}}
 
     # Fetch scholarships from MongoDB
     scholarships = list(scholarships_collection.find(mongo_query))
@@ -102,7 +102,6 @@ def fetch_and_filter_scholarships():
         scholarships = sorted(scholarships, key=lambda x: x.get('due_date', datetime.max), reverse=True)
 
     return scholarships
-
 
 # Fetch filtered scholarships
 filtered_scholarships = fetch_and_filter_scholarships()
@@ -118,35 +117,47 @@ with tab1:
     for scholarship in filtered_scholarships:
         scholarship_id = str(scholarship["_id"])
 
-        # Safely access scholarship fields with defaults
-        name = scholarship.get('name', 'Unnamed Scholarship')
-        merit_based = scholarship.get('merit_based', 'Unknown')
-        ethnicity = scholarship.get('ethnicity', 'All')
-        gender = scholarship.get('gender', 'All')
-        first_gen = scholarship.get('first_gen', False)
-        lgbtq = scholarship.get('LGBTQ', False)
-        location = scholarship.get('location', 'Unknown')
-        reward = scholarship.get('reward', 0)
-        extras = scholarship.get('extras', 'None')
-        due_date = scholarship.get('due_date', None)
+        # Safely access scholarship fields and display only available fields
+        if "title" in scholarship:
+            st.subheader(scholarship["title"])
 
-        st.subheader(name)
+        if "description" in scholarship:
+            st.write(scholarship["description"])
 
-        # Highlight scholarships with upcoming deadlines (e.g., less than 30 days)
-        if due_date:
-            days_until_due = (due_date - datetime.now()).days
-            if days_until_due <= 30:
-                st.write(f"**Deadline Approaching:** {days_until_due} days left! ⏰")
+        if "is_merit_based" in scholarship:
+            st.write(f"**Merit-Based**: {'Yes' if scholarship['is_merit_based'] else 'No'}")
 
-        st.write(f"**Merit-Based**: {merit_based}")
-        st.write(f"**Required Ethnicity**: {ethnicity}")
-        st.write(f"**Gender**: {gender}")
-        st.write(f"**First-Generation College Student**: {'Yes' if first_gen else 'No'}")
-        st.write(f"**LGBTQ+ Support**: {'Yes' if lgbtq else 'No'}")
-        st.write(f"**Location**: {location}")
-        st.write(f"**Reward Amount**: ${reward}")
-        st.write(f"**Extra Requirements**: {extras}")
-        if due_date:
+        if "preferred_ethnicity" in scholarship:
+            st.write(f"**Preferred Ethnicity**: {scholarship['preferred_ethnicity']}")
+
+        if "preferred_gender" in scholarship:
+            st.write(f"**Preferred Gender**: {scholarship['preferred_gender']}")
+
+        if "preferred_major" in scholarship:
+            st.write(f"**Preferred Major**: {scholarship['preferred_major']}")
+
+        if "prefers_lgbt" in scholarship:
+            st.write(f"**Supports LGBTQ+**: {'Yes' if scholarship['prefers_lgbt'] else 'No'}")
+
+        if "location" in scholarship:
+            st.write(f"**Location**: {scholarship['location']}")
+
+        # Handle reward amount with conditional logic
+        if "reward" in scholarship:
+            reward = scholarship['reward']
+            if reward == 0:
+                st.write("**Reward Amount**: Amount may vary")
+            else:
+                st.write(f"**Reward Amount**: ${reward}")
+
+        if "is_essay_required" in scholarship:
+            st.write(f"**Essay Required**: {'Yes' if scholarship['is_essay_required'] else 'No'}")
+
+        if "extra_requirements" in scholarship:
+            st.write(f"**Extra Requirements**: {scholarship['extra_requirements']}")
+
+        if "due_date" in scholarship:
+            due_date = scholarship["due_date"]
             st.write(f"**Due Date**: {due_date.strftime('%Y-%m-%d')}")
 
         # Save, Apply, and Favorite buttons
@@ -154,28 +165,28 @@ with tab1:
 
         with col1:
             if scholarship_id not in st.session_state.saved_scholarships:
-                if st.button(f"Save {name}", key=f"save-{scholarship_id}"):
+                if st.button(f"Save {scholarship['title']}", key=f"save-{scholarship_id}"):
                     st.session_state.saved_scholarships.add(scholarship_id)
                     scholarships_collection.update_one({"_id": ObjectId(scholarship_id)}, {"$set": {"saved": True}})
-                    st.success(f"Scholarship '{name}' saved!")
+                    st.success(f"Scholarship '{scholarship['title']}' saved!")
             else:
                 st.markdown(f"<button class='saved-button'>Saved</button>", unsafe_allow_html=True)
 
         with col2:
             if scholarship_id not in st.session_state.applied_scholarships:
-                if st.button(f"Apply {name}", key=f"apply-{scholarship_id}"):
+                if st.button(f"Apply {scholarship['title']}", key=f"apply-{scholarship_id}"):
                     st.session_state.applied_scholarships.add(scholarship_id)
                     scholarships_collection.update_one({"_id": ObjectId(scholarship_id)}, {"$set": {"applied": True}})
-                    st.success(f"Scholarship '{name}' marked as applied!")
+                    st.success(f"Scholarship '{scholarship['title']}' marked as applied!")
             else:
                 st.markdown(f"<button class='applied-button'>Applied</button>", unsafe_allow_html=True)
 
         with col3:
             if scholarship_id not in st.session_state.favorited_scholarships:
-                if st.button(f"Favorite {name}", key=f"favorite-{scholarship_id}"):
+                if st.button(f"Favorite {scholarship['title']}", key=f"favorite-{scholarship_id}"):
                     st.session_state.favorited_scholarships.add(scholarship_id)
                     scholarships_collection.update_one({"_id": ObjectId(scholarship_id)}, {"$set": {"favorited": True}})
-                    st.success(f"Scholarship '{name}' favorited!")
+                    st.success(f"Scholarship '{scholarship['title']}' favorited!")
             else:
                 st.markdown(f"<button class='favorited-button'>Favorited</button>", unsafe_allow_html=True)
 
@@ -185,9 +196,19 @@ with tab2:
     saved_scholarships = scholarships_collection.find({"_id": {"$in": [ObjectId(sid) for sid in saved_ids]}})
     st.write(f"You have saved {len(saved_ids)} scholarships.")
     for scholarship in saved_scholarships:
-        name = scholarship.get('name', 'Unnamed Scholarship')
-        st.subheader(name)
-        st.write(f"**Reward Amount**: ${scholarship.get('reward', 0)}")
-        st.write(f"**Due Date**: {scholarship.get('due_date', datetime.now()).strftime('%Y-%m-%d')}")
+        name = scholarship.get('title')
+        if name:
+            st.subheader(name)
+
+        # Handle reward amount with conditional logic in Saved Scholarships tab
+        if 'reward' in scholarship:
+            reward = scholarship.get('reward', 0)
+            if reward == 0:
+                st.write("**Reward Amount**: Amount may vary")
+            else:
+                st.write(f"**Reward Amount**: ${reward}")
+
+        if 'due_date' in scholarship:
+            st.write(f"**Due Date**: {scholarship['due_date'].strftime('%Y-%m-%d')}")
 
 # The rest of the tabs for applied and favorited scholarships follow the same structure as saved.
