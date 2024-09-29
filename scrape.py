@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 from tqdm import tqdm  # Import the tqdm library for the progress bar
+import json
 
 # Step 1: Make requests to the website for multiple pages
 base_url = 'https://scholarships.asu.edu/scholarship-search&page='
@@ -30,15 +31,16 @@ for url in urls:
 # Step 4: Only include links with the pattern "https://scholarships.asu.edu/scholarship/" followed by numbers
 filtered_links = [link for link in links if link.startswith('https://scholarships.asu.edu/scholarship/')]
 
-# New lists to store ID numbers and HTML descriptions
-id_numbers = []
-html_descriptions = []
+scholarships = []
 
 # Step 5: Extract ID numbers and scrape each filtered link for its HTML description using div parent method
 for link in tqdm(filtered_links, desc="Scraping scholarship pages"):  # Add a progress bar to the loop
     # Extract the ID number (assumes ID is at the end of the URL after the last '/')
     id_number = link.split('/')[-1]
-    id_numbers.append(id_number)
+
+    scholarship = {
+        "id": id_number
+    }
 
     # Make a request to the individual scholarship page to get its content
     response = requests.get(link)
@@ -54,12 +56,17 @@ for link in tqdm(filtered_links, desc="Scraping scholarship pages"):  # Add a pr
         if parent_div:
             # Get the text content of the parent div (this should contain the description)
             description = parent_div.get_text(strip=True, separator=' ')
-            html_descriptions.append(description)
+            scholarship["description"] = description
         else:
-            html_descriptions.append("Parent div not found")
+            scholarship["description"] = "Parent div not found"
     else:
-        html_descriptions.append("H1 element with id 'page-title' not found")
+        scholarship["description"] = "H1 element not found"
+
+    scholarships.append(scholarship)
 
 # Print the results
-print("ID Numbers:", id_numbers)
-print("HTML Descriptions:", html_descriptions)
+print(scholarships)
+
+# save to json named scrape.json
+with open('scrape.json', 'w') as f:
+    json.dump(scholarships, f, indent=2)
