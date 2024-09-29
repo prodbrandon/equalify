@@ -98,3 +98,93 @@ for i in range(k):
 if st.checkbox('Show raw data'):
     st.subheader('Raw data')
     st.write(df)
+
+from wordcloud import WordCloud
+import matplotlib.pyplot as plt
+
+def generate_wordcloud(text):
+    wordcloud = WordCloud(width=800, height=400, background_color='white').generate(text)
+    plt.figure(figsize=(10, 5))
+    plt.imshow(wordcloud, interpolation='bilinear')
+    plt.axis('off')
+    st.pyplot(plt)
+
+all_descriptions = ' '.join(df['description'])
+st.subheader("Word Cloud of All Descriptions")
+generate_wordcloud(all_descriptions)
+
+from collections import Counter
+from nltk import ngrams
+
+def get_top_ngrams(text, n, top_k=10):
+    words = text.split()
+    n_grams = ngrams(words, n)
+    return Counter(n_grams).most_common(top_k)
+
+st.subheader("Top Bigrams and Trigrams")
+col1, col2 = st.columns(2)
+with col1:
+    st.write("Top Bigrams")
+    st.write(get_top_ngrams(all_descriptions, 2))
+with col2:
+    st.write("Top Trigrams")
+    st.write(get_top_ngrams(all_descriptions, 3))
+
+from gensim import corpora
+from gensim.models.ldamodel import LdaModel
+from gensim.parsing.preprocessing import STOPWORDS
+import gensim
+
+def preprocess(text):
+    return [word for word in gensim.utils.simple_preprocess(text) if word not in STOPWORDS]
+
+texts = df['description'].apply(preprocess)
+dictionary = corpora.Dictionary(texts)
+corpus = [dictionary.doc2bow(text) for text in texts]
+
+lda_model = LdaModel(corpus=corpus, id2word=dictionary, num_topics=5, random_state=100)
+
+st.subheader("LDA Topic Modeling")
+for idx, topic in lda_model.print_topics(-1):
+    st.write(f'Topic: {idx}')
+    st.write(topic)
+
+from textblob import TextBlob
+
+def get_sentiment(text):
+    return TextBlob(text).sentiment.polarity
+
+df['sentiment'] = df['description'].apply(get_sentiment)
+
+st.subheader("Sentiment Distribution")
+fig, ax = plt.subplots()
+ax.hist(df['sentiment'], bins=20)
+ax.set_xlabel('Sentiment Score')
+ax.set_ylabel('Frequency')
+st.pyplot(fig)
+
+import textstat
+
+def get_readability_scores(text):
+    return {
+        'flesch_reading_ease': textstat.flesch_reading_ease(text),
+        'smog_index': textstat.smog_index(text),
+        'flesch_kincaid_grade': textstat.flesch_kincaid_grade(text)
+    }
+
+df['readability_scores'] = df['description'].apply(get_readability_scores)
+readability_df = pd.DataFrame(df['readability_scores'].tolist())
+
+st.subheader("Text Complexity Distribution")
+for column in readability_df.columns:
+    st.write(f"{column} Distribution")
+    st.line_chart(readability_df[column])
+
+df['description_length'] = df['description'].str.len()
+
+st.subheader("Description Length Distribution")
+fig, ax = plt.subplots()
+ax.hist(df['description_length'], bins=20)
+ax.set_xlabel('Description Length')
+ax.set_ylabel('Frequency')
+st.pyplot(fig)
