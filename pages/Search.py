@@ -49,8 +49,6 @@ if 'favorited_scholarships' not in st.session_state:
 page_size = 5  # Number of scholarships to display per page
 if 'page_number' not in st.session_state:
     st.session_state.page_number = 1
-
-
 def change_page(change):
     st.session_state.page_number += change
 
@@ -144,8 +142,6 @@ start_idx = (st.session_state.page_number - 1) * page_size
 end_idx = start_idx + page_size
 current_page_scholarships = filtered_scholarships[start_idx:end_idx]
 
-
-# Function to display scholarships with buttons
 # Function to display scholarships with buttons
 def display_scholarship_list(scholarships, tab_prefix):
     for scholarship in scholarships:
@@ -243,8 +239,6 @@ def display_scholarship_list(scholarships, tab_prefix):
         st.markdown("---")
 
 
-
-
 # Tabs for viewing all scholarships, saved, applied, and favorited
 tab1, tab2, tab3, tab4 = st.tabs(
     ["All Scholarships", "Saved Scholarships", "Applied Scholarships", "Favorited Scholarships"])
@@ -253,6 +247,20 @@ tab1, tab2, tab3, tab4 = st.tabs(
 with tab1:
     st.write(f"Found {total_scholarships} scholarships matching your filters and search query.")
     display_scholarship_list(current_page_scholarships, tab_prefix="all")
+
+    # Pagination controls
+    col_prev, col_page, col_next = st.columns([1, 2, 1])
+
+    with col_prev:
+        if st.session_state.page_number > 1:
+            st.button("Previous", on_click=change_page, args=(-1,))
+
+    with col_page:
+        st.write(f"Page {st.session_state.page_number} of {total_pages}")
+
+    with col_next:
+        if st.session_state.page_number < total_pages:
+            st.button("Next", on_click=change_page, args=(1,))
 
 # Tab 2: Saved Scholarships
 with tab2:
@@ -349,3 +357,4 @@ with tab4:
     for sid in scholarships_to_remove:
         st.session_state.favorited_scholarships.remove(sid)
         scholarships_collection.update_one({"_id": ObjectId(sid)}, {"$set": {"favorited": False}})
+
