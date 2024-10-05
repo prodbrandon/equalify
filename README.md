@@ -12,4 +12,4 @@ Written by: Ben Juntilla, Sahil Pai, Brandon Lim, Brandon Van Allen
 - `python scrape.py`
 - `python load.py`
 - `python augment.py`
-- `streamlit run main.py`
+- `streamlit run Home.py`
